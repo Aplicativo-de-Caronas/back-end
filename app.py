@@ -2,8 +2,35 @@ from flask import Flask, request, url_for, redirect, make_response
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///project.db"
+app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///app_caronas.sqlite3"
 db = SQLAlchemy(app)
+
+
+def make_json(clss, default_all=True, avoid=None):
+    if avoid is None:
+        avoid = set()
+
+    if default_all:
+        avoid.add("_sa_instance_state")
+        selects = set()
+        output = []
+        for item in clss:
+            temp = {}
+            if not selects:
+                selects = set(item.__dict__.keys()) - avoid
+            for select in selects:
+                temp.update({select: item.__dict__[select]})
+            output.append(temp)
+        return output
+    else:
+        selects = set(avoid)
+        output = []
+        for item in clss:
+            temp = {}
+            for select in selects:
+                temp.update({select: item.__dict__[select]})
+            output.append(temp)
+        return output
 
 
 class students(db.Model):
@@ -28,13 +55,12 @@ class User(db.Model):
 
 with app.app_context():
     db.create_all()
-    db.session.commit()
 
 
 @app.route("/users")
 def user_list():
     users = db.session.execute(db.select(User).order_by(User.username)).scalars()
-    return make_response(users)
+    return make_response(make_json(users, default_all=False, avoid=["email", "username"]))
 
 
 @app.route("/users/create", methods=["GET", "POST"])
