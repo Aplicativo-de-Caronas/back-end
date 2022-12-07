@@ -32,28 +32,12 @@ def make_json(clss, default_all=True, avoid=None):
             output.append(temp)
         return output
 
-
-class students(db.Model):
-    id = db.Column('student_id', db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    city = db.Column(db.String(50))
-    addr = db.Column(db.String(200))
-    pin = db.Column(db.String(10))
-
-    def __init__(self, name, city, addr, pin):
-        self.name = name
-        self.city = city
-        self.addr = addr
-        self.pin = pin
-
-
-
-
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String, unique=True, nullable=False)
-    email = db.Column(db.String)
+    name = db.Column(db.String, nullable=False)
+    email = db.Column(db.String, nullable=False)
+    celular = db.Column(db.String, nullable=False)
 
 
 with app.app_context():
