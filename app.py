@@ -1,36 +1,16 @@
-from flask import Flask, request, url_for, redirect, make_response
+from flask import Flask, request, url_for, redirect, make_response, session
 from flask_sqlalchemy import SQLAlchemy
+from datetime import timedelta
 
 app = Flask(__name__)
+# Configurador DB
 app.config['SQLALCHEMY_DATABASE_URI'] = "sqlite:///app_caronas.sqlite3"
 db = SQLAlchemy(app)
 
+# Configurador Session
+app.secret_key = 'oaskdfoakfoak'
+app.permanent_session_lifetime = timedelta(days=15)
 
-def make_json(clss, default_all=True, avoid=None):
-    if avoid is None:
-        avoid = set()
-
-    if default_all:
-        avoid.add("_sa_instance_state")
-        selects = set()
-        output = []
-        for item in clss:
-            temp = {}
-            if not selects:
-                selects = set(item.__dict__.keys()) - avoid
-            for select in selects:
-                temp.update({select: item.__dict__[select]})
-            output.append(temp)
-        return output
-    else:
-        selects = set(avoid)
-        output = []
-        for item in clss:
-            temp = {}
-            for select in selects:
-                temp.update({select: item.__dict__[select]})
-            output.append(temp)
-        return output
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -48,8 +28,6 @@ with app.app_context():
 def user_list():
     users = db.session.execute(db.select(User).order_by(User.username)).scalars()
     return make_response(make_json(users, default_all=False, avoid=["email", "username"]))
-
-
 @app.route("/users/create", methods=["GET", "POST"])
 def user_create():
     if request.method == "POST":
@@ -82,5 +60,19 @@ def user_delete(id_delete):
     return make_response(user)
 
 
+@app.route("/teste/<name>")
+def user_de(name):
+    session.permanent = True
+    session['user'] = name
+    return "Hi!"
+
+@app.route("/teste")
+def user():
+    if "user" in session:
+        return session['user']
+    else:
+        return "Error"
+
 if __name__ == "__main__":
+    app.debug = True
     app.run()
