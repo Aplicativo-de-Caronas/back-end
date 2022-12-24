@@ -105,9 +105,27 @@ def Conta():
 @app.route("/login", methods=["POST", "DELETE"])
 def login():
     if request.method == "POST":
-        pass  # todo: login
+        try:
+            # todo: criptografia
+            conta = Account.query.filter_by(email=request.json['email'], password=request.json['password']).first()
+            if conta:
+                session.permanent = True
+                session['account_id'] = conta.id
+                return make_response({"Status": f"Success"}, 200)
+            else:
+                return make_response({"Status": f"Not Found"}, 404)
+        except KeyError:
+            return make_response(
+                {"Status": "Bad request",
+                 "Expected": ['email', 'password'],
+                 "Received": list(request.json.keys())},
+                400)
     elif request.method == "DELETE":
-        pass  # todo: logout
+        if "account_id" in session:
+            session.clear()
+            return make_response({"Status": f"Logout"}, 202)
+        else:
+            return make_response({"Status": f"already logout"}, 401)
 
 
 @app.route("/users", methods=["GET", "POST", "PUT", "DELETE"])
@@ -125,53 +143,11 @@ def Usuario():
         db.session.add(usr)
         db.commit()
     elif request.method == "PUT":
-        passG
+        pass
     elif request.method == "DELETE":
         pass
     return make_response()
 
-
-@app.route("/users/create", methods=["GET", "POST"])
-def user_create():
-    if request.method == "POST":
-        db.session.add(user)
-        db.session.commit()
-        return redirect(url_for("user_detail", id=user.id))
-
-    return make_response({"Valid": True})
-
-
-@app.route("/user/<int:id>")
-def user_detail(id_detail):
-    usera = db.get_or_404(Profile, id_detail)
-    return make_response(usera)
-
-
-@app.route("/user/<int:id>/delete", methods=["GET", "POST"])
-def user_delete(id_delete):
-    user = db.get_or_404(Profile, id_delete)
-
-    if request.method == "POST":
-        db.session.delete(user)
-        db.session.commit()
-        return redirect(url_for("user_list"))
-
-    return make_response(user)
-
-
-@app.route("/teste/<name>")
-def user_de(name):
-    session.permanent = True
-    session['user'] = name
-    return "Hi!"
-
-
-@app.route("/teste")
-def user():
-    if "user" in session:
-        return session['user']
-    else:
-        return "Error"
 
 
 if __name__ == "__main__":
