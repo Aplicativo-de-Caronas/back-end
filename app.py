@@ -30,12 +30,14 @@ class Profile(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String, nullable=False)
     celular = db.Column(db.String(20), nullable=True)
+    account_id = db.Column(UUID(as_uuid=True), db.ForeignKey("account.id"))
 
-    def __init__(self, username, name, email, celular):
+    def __init__(self, username, name, email, celular, account):
         self.username = username
         self.name = name
         self.email = email
-        self.celular = celular
+        self.celular = celular,
+        self.account_id = account
 
 
 with app.app_context():
@@ -68,6 +70,7 @@ def Conta():
 
     elif request.method == "PUT":
         try:
+            # todo: mudar para ter uma lista de "changed" com os elementos alterados.
             if 'account_id' not in session:
                 return make_response({"Status": "Not Logged"}, 401)
             else:
@@ -102,12 +105,14 @@ def Conta():
         return make_response({"Status": f"Nada mudou"}, 200)
 
 
-@app.route("/login", methods=["POST", "DELETE"])
+@app.route("/login", methods=["GET","POST", "DELETE"])
 def login():
     if request.method == "POST":
         try:
             # todo: criptografia
             conta = Account.query.filter_by(email=request.json['email'], password=request.json['password']).first()
+            if "account_id" in session:
+                return make_response({"Status": f"Already logged"}, 418)
             if conta:
                 session.permanent = True
                 session['account_id'] = conta.id
@@ -126,9 +131,14 @@ def login():
             return make_response({"Status": f"Logout"}, 202)
         else:
             return make_response({"Status": f"already logout"}, 401)
+    elif request.method == "GET":
+        if "account_id" in session:
+            return make_response({"Status": f"logged", "Account_ID": session["account_id"]}, 200)
+        else:
+            return make_response({"Status": f"Not Logged"}, 401)
 
 
-@app.route("/users", methods=["GET", "POST", "PUT", "DELETE"])
+@app.route("/profile", methods=["GET", "POST", "PUT", "DELETE"])
 def Usuario():
     if request.method == "GET":
         users = db.session.execute(db.select(Profile).order_by(Profile.username)).scalars()
