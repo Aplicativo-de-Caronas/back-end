@@ -34,13 +34,13 @@ class Profile(db.Model):
     account_id = db.Column(UUID(as_uuid=True), db.ForeignKey("account.id"), primary_key=True)
     firstName = db.Column(db.String, nullable=False)
     lastName = db.Column(db.String, nullable=False)
-    celular = db.Column(db.String(20), nullable=True)
+    cellphone = db.Column(db.String(20), nullable=True)
     cpf = db.Column(db.String(15), nullable=True)
 
-    def __init__(self, firstName, lastName, celular,cpf, account):
+    def __init__(self, firstName, lastName, cellphone, cpf, account):
         self.firstName = firstName
         self.lastName = lastName
-        self.celular = celular
+        self.cellphone = cellphone
         self.cpf = cpf
         self.account_id = account
 
@@ -95,10 +95,7 @@ def Conta():
                     for item in mudanca:
                         exec(f"conta.{item} = request.json['{item}']")
                     db.session.commit()
-                    if mudanca:
-                        return make_response({"Status": f"{' '.join(mudanca)} changed"}, 200)
-                    else:
-                        raise KeyError
+                    return make_response({"Status": f"{' '.join(mudanca)} changed"}, 200)
         except KeyError:
             return make_response(
                 {"Status": "Bad request",
@@ -169,17 +166,19 @@ def Usuario():
             if profile:
                 return make_response({"firstName": profile.firstName,
                                       "lastName": profile.lastName,
-                                      "cellphone": profile.celular,
-                                      "cpf": f"{profile.cpf[0:3]}.***.***-{profile.cpf[9:-1]}"}, 200)
+                                      "cellphone": profile.cellphone,
+                                      "cpf": f"{profile.cpf[0:3]}.***.***-{profile.cpf[9:]}"}, 200)
             else:
                 return make_response({"Status": f"Not Found"}, 404)
     elif request.method == "POST":
         try:
+            if 'account_id' not in session:
+                return make_response({"Status": f"Unauthorized"}, 401)
             Validator.cpf(request.json['cpf'])
             prof = Profile(
                 firstName=request.json['firstName'],
                 lastName=request.json['lastName'],
-                celular=request.json['cellphone'],
+                cellphone=request.json['cellphone'],
                 cpf=request.json['cpf'],
                 account=Account.query.filter_by(id=session['account_id']).first().id
             )
@@ -195,13 +194,44 @@ def Usuario():
         except IntegrityError:
             return make_response({"Status": "Already has a profile"}, 409)
         except InvalidCpf:
-            return make_response({"Status": "Invalid CPF"}, 406)
+            return make_response({"Status": "Invalid CPF, or bad format, only use numbers"}, 406)
     elif request.method == "PUT":
-        pass
+        if 'account_id' not in session:
+            return make_response({"Status": f"Unauthorized"}, 401)
+        conta = Account.query.filter_by(id=session['account_id']).first()
+        # todo: criptografia
+        if request.json['password'] != conta.password:
+            return make_response({"Status": "Actual password wrong"}, 406)
+        mudanca = request.json['change']
+        if not {"cellphone"}.issuperset(mudanca) or not mudanca:
+            return make_response(
+                {"Status": "Bad request",
+                 "Expected": ['cellphone'],
+                 "Details": "Expect only the 2 aboves itens in 'change'",
+                 "Received": mudanca},
+                400)
+        perfil = Profile.query.filter_by(account_id=session['account_id']).first()
+        for item in mudanca:
+            exec(f"perfil.{item} = request.json['{item}']")
+        db.session.commit()
+        return make_response({"Status": f"{' '.join(mudanca)} changed"}, 200)
     elif request.method == "DELETE":
-        pass
-    return make_response()
+        # todo: criptografia
+        if 'account_id' not in session:
+            return make_response({"Status": "Unauthorized, make login first"}, 401)
+        else:
+            conta = Account.query.filter_by(id=session['account_id'],
+                                            password=request.json['password']).first()
+            print(Profile.query.filter_by(account_id=conta).first())
+            if conta:
+                db.session.delete(conta)
+                db.session.commit()
+                session.clear()
+                return make_response({"Status": "Success"}, 202)
+            else:
+                return make_response({"Status": "Wrong Password"}, 404)
 
 
 if __name__ == "__main__":
     app.run(host="localhost", port=8590, debug=True)
+    pass
